@@ -3,59 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>달러리치 - 세븐스플릿 계산기</title>
+    <title>DollarRich Pro - 세븐스플릿 대시보드</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    </style>
 </head>
-<body class="bg-gray-100 p-5">
-    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-blue-600 mb-4">💵 달러리치 매매 계산기</h1>
-        
-        <div class="mb-6">
-            <label class="block text-sm font-medium text-gray-700">1차 기준 환율 (원)</label>
-            <input type="number" id="baseRate" placeholder="예: 1350" 
-                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-            <button onclick="calculate()" class="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">계산하기</button>
+<body class="text-slate-800">
+
+    <nav class="bg-blue-700 text-white p-4 shadow-lg mb-6">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-chart-line mr-2"></i>DOLLAR RICH PRO</h1>
+            <div id="liveClock" class="text-sm opacity-80"></div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 max-w-6xl">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass p-6 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-sm text-slate-500 font-semibold">총 투자 금액</p>
+                <h3 id="totalInvested" class="text-3xl font-bold text-slate-900">$ 0.00</h3>
+            </div>
+            <div class="glass p-6 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-sm text-slate-500 font-semibold">평균 매수 환율</p>
+                <h3 id="avgRate" class="text-3xl font-bold text-blue-600">0.00 원</h3>
+            </div>
+            <div class="glass p-6 rounded-2xl shadow-sm border border-slate-200">
+                <p class="text-sm text-slate-500 font-semibold">예상 수익금 (평단가 대비)</p>
+                <h3 id="estimatedProfit" class="text-3xl font-bold text-emerald-600">0 원</h3>
+            </div>
         </div>
 
-        <div id="result" class="hidden">
-            <h2 class="text-lg font-semibold mb-3">차수별 매수 목표가</h2>
-            <table class="w-full text-sm text-left border-collapse">
-                <thead>
-                    <tr class="bg-gray-50">
-                        <th class="border-b p-2">차수</th>
-                        <th class="border-b p-2">매수환율</th>
-                        <th class="border-b p-2">변동률</th>
-                    </tr>
-                </thead>
-                <tbody id="resultBody"></tbody>
-            </table>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="space-y-6">
+                <div class="glass p-6 rounded-2xl shadow-md border border-blue-100">
+                    <h2 class="text-lg font-bold mb-4 flex items-center"><i class="fa-solid fa-gear mr-2 text-blue-500"></i>기준 설정</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600">1차 기준 환율 (원)</label>
+                            <input type="number" id="baseRate" value="1350" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-600">현재 환율 (시장가)</label>
+                            <input type="number" id="currentRate" value="1340" class="w-full mt-1 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <button onclick="updateDashboard()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">데이터 동기화</button>
+                    </div>
+                </div>
+
+                <div class="glass p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4">투자 비중 현황</h2>
+                    <canvas id="investmentChart" width="400" height="400"></canvas>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="glass rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                        <h2 class="text-lg font-bold italic">7-SPLIT STRATEGY TABLE</h2>
+                        <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">LIVE TRACKING</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                                <tr>
+                                    <th class="px-6 py-4">차수</th>
+                                    <th class="px-6 py-4">목표 매수 환율</th>
+                                    <th class="px-6 py-4">투자 수량 ($)</th>
+                                    <th class="px-6 py-4">상태</th>
+                                    <th class="px-6 py-4">수익률</th>
+                                </tr>
+                            </thead>
+                            <tbody id="strategyTable" class="divide-y divide-slate-100">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </main>
 
     <script>
-        function calculate() {
-            const baseRate = parseFloat(document.getElementById('baseRate').value);
-            if (!baseRate) return alert('환율을 입력해주세요.');
+        let myChart;
 
-            const resultBody = document.getElementById('resultBody');
-            resultBody.innerHTML = '';
-            
-            // 세븐스플릿 기본 로직: 각 차수별로 약 1%씩 하락 시 매수
+        function updateDashboard() {
+            const baseRate = parseFloat(document.getElementById('baseRate').value);
+            const currentRate = parseFloat(document.getElementById('currentRate').value);
+            const tableBody = document.getElementById('strategyTable');
+            tableBody.innerHTML = '';
+
+            let totalUSD = 0;
+            let totalKRW = 0;
+            let chartData = [];
+
             for (let i = 1; i <= 7; i++) {
-                const dropRate = (i - 1) * 0.01;
-                const targetRate = (baseRate * (1 - dropRate)).toFixed(2);
+                const targetRate = baseRate * (1 - (i - 1) * 0.01);
+                const isBought = currentRate <= targetRate;
+                const amountUSD = isBought ? 1000 : 0; // 예시로 1000불씩 매수 가정
                 
+                if(isBought) {
+                    totalUSD += amountUSD;
+                    totalKRW += amountUSD * targetRate;
+                }
+
+                const profitRate = isBought ? ((currentRate - targetRate) / targetRate * 100).toFixed(2) : '-';
+                const statusBadge = isBought 
+                    ? `<span class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">매수 완료</span>`
+                    : `<span class="px-3 py-1 bg-slate-100 text-slate-400 rounded-lg text-xs font-bold">대기 중</span>`;
+
                 const row = `
-                    <tr class="${i === 1 ? 'bg-blue-50' : ''}">
-                        <td class="border-b p-2 font-medium">${i}차</td>
-                        <td class="border-b p-2 text-blue-600 font-bold">${targetRate}원</td>
-                        <td class="border-b p-2 text-gray-500">-${(dropRate * 100).toFixed(0)}%</td>
+                    <tr class="${isBought ? 'bg-blue-50/30' : ''} hover:bg-slate-50 transition">
+                        <td class="px-6 py-4 font-bold">${i}차</td>
+                        <td class="px-6 py-4 text-blue-600 font-semibold">${targetRate.toLocaleString()} 원</td>
+                        <td class="px-6 py-4 font-medium">$ ${amountUSD}</td>
+                        <td class="px-6 py-4">${statusBadge}</td>
+                        <td class="px-6 py-4 font-bold ${profitRate > 0 ? 'text-rose-500' : 'text-slate-400'}">${profitRate}%</td>
                     </tr>
                 `;
-                resultBody.insertAdjacentHTML('beforeend', row);
+                tableBody.insertAdjacentHTML('beforeend', row);
+                chartData.push(isBought ? 1000 : 0);
             }
-            document.getElementById('result').classList.remove('hidden');
+
+            // 요약 업데이트
+            document.getElementById('totalInvested').innerText = `$ ${totalUSD.toLocaleString()}`;
+            const avgRate = totalUSD > 0 ? (totalKRW / totalUSD).toFixed(2) : 0;
+            document.getElementById('avgRate').innerText = `${avgRate} 원`;
+            document.getElementById('estimatedProfit').innerText = `${(totalUSD * (currentRate - avgRate)).toLocaleString(undefined, {maximumFractionDigits:0})} 원`;
+
+            updateChart(chartData);
         }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('investmentChart').getContext('2d');
+            if (myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['1차', '2차', '3차', '4차', '5차', '6차', '7차'],
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#1d4ed8', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#dbeafe'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { cutout: '70%', plugins: { legend: { display: false } } }
+            });
+        }
+
+        // 시계 기능
+        setInterval(() => {
+            document.getElementById('liveClock').innerText = new Date().toLocaleString();
+        }, 1000);
+
+        // 초기 실행
+        updateDashboard();
     </script>
 </body>
 </html>
+            
